@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PalettePick — Free Image to Colour Palette Extractor</title>
+  <meta name="description" content="PalettePick pulls the dominant colours out of any image right in your browser — click to copy HEX, RGB or HSL, explore colour harmonies, and export a shareable palette card, CSS variables, a Tailwind config or JSON. Nothing is uploaded.">
+  <link rel="canonical" href="https://palettepick-app.vercel.app/">
+  <meta name="theme-color" content="#0B0B0F">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="PalettePick — Free Image to Colour Palette Extractor">
+  <meta property="og:description" content="Pull the dominant colours out of any image in your browser. Click to copy HEX, RGB or HSL, explore harmonies, export a palette card, CSS variables, Tailwind config or JSON. Nothing uploaded.">
+  <meta property="og:url" content="https://palettepick-app.vercel.app/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PalettePick — Free Image to Colour Palette Extractor">
+  <meta name="twitter:description" content="Pull the dominant colours out of any image in your browser. Click to copy HEX, RGB or HSL, explore harmonies, export a palette card, CSS variables, Tailwind config or JSON. Nothing uploaded.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1>Palette<span class="pick">Pick</span></h1>
+      <p class="tagline">Drop in any image and pull out its dominant colours — click any swatch to copy its HEX, explore harmonies, and export the palette as a card, CSS variables, a Tailwind config or JSON. Everything runs in your browser; your images are never uploaded.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="layout">
+      <section class="panel" aria-label="Image and extraction settings">
+        <div class="panel-head">
+          <h2>Your image</h2>
+          <p class="hint">PNG, JPG or WebP, up to 10 MB each. Up to 8 images at a time.</p>
+        </div>
+
+        <div class="drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Upload images">
+          <span class="drop-icon" aria-hidden="true">+</span>
+          <p>Drop images here, paste one, or <span class="browse-link">browse files</span></p>
+          <small>Drag and drop, Ctrl+V to paste, or click to choose</small>
+        </div>
+        <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp" multiple hidden>
+
+        <div class="thumb-strip" id="thumb-strip" aria-label="Uploaded images"></div>
+
+        <div class="field">
+          <label for="sample-select">No image handy? Try a sample</label>
+          <select id="sample-select">
+            <option value="sunset">Sunset glow</option>
+            <option value="ocean">Deep ocean</option>
+            <option value="forest">Forest floor</option>
+            <option value="berry">Berry dusk</option>
+            <option value="desert">Desert noon</option>
+            <option value="slate">Slate study</option>
+          </select>
+          <button class="btn btn-block" type="button" id="btn-sample">Load sample image</button>
+        </div>
+
+        <div class="field">
+          <label for="color-count">Colours in the palette <output id="color-count-value">6</output></label>
+          <input type="range" id="color-count" min="3" max="10" step="1" value="6">
+          <p class="field-note">More colours means finer shades; fewer means only the strongest ones.</p>
+        </div>
+
+        <div class="field">
+          <label for="quality-select">Extraction quality</label>
+          <select id="quality-select">
+            <option value="1">Precise — every pixel (slower on big photos)</option>
+            <option value="2" selected>Balanced — every 2nd pixel</option>
+            <option value="4">Fast — every 4th pixel</option>
+          </select>
+        </div>
+
+        <label class="check-row" for="exclude-extremes">
+          <input type="checkbox" id="exclude-extremes" checked>
+          Ignore near-white and near-black
+        </label>
+
+        <div class="field">
+          <label for="sat-floor">Minimum saturation <output id="sat-floor-value">0%</output></label>
+          <input type="range" id="sat-floor" min="0" max="80" step="5" value="0">
+          <p class="field-note">Raise this to push dull greys out of the palette.</p>
+        </div>
+
+        <div class="field">
+          <label for="sort-select">Sort palette by</label>
+          <select id="sort-select">
+            <option value="frequency" selected>Frequency — most common first</option>
+            <option value="luminance">Luminance — lightest first</option>
+            <option value="hue">Hue — around the colour wheel</option>
+            <option value="saturation">Saturation — most vivid first</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary btn-block" type="button" id="btn-reextract">Re-extract palette</button>
+      </section>
+
+      <div>
+        <section class="panel" aria-label="Source image">
+          <div class="panel-head">
+            <h2>Source</h2>
+            <p class="hint">Click anywhere on the image to pick that exact colour.</p>
+          </div>
+          <div class="source-preview">
+            <img id="source-img" alt="Source image for colour extraction" src="" hidden>
+            <p class="empty-note" id="source-empty">No image yet — upload one, paste one, or load a sample to get started.</p>
+          </div>
+          <p class="source-meta" id="source-meta" hidden>
+            <span id="source-name"></span><br>
+            <span class="pick-hint">Click the image to pick a colour and see its harmonies below.</span>
+          </p>
+        </section>
+
+        <section class="panel" aria-label="Extracted palette">
+          <div class="panel-head">
+            <h2>Palette</h2>
+            <p class="hint">Click a swatch to copy its HEX. Lock a colour to keep it while the rest re-extract.</p>
+          </div>
+          <p class="empty-note" id="palette-empty">Your palette will appear here once an image is loaded.</p>
+          <div class="palette-grid" id="palette-grid"></div>
+        </section>
+
+        <section class="panel" aria-label="Colour harmonies">
+          <div class="panel-head">
+            <h2>Harmonies</h2>
+            <p class="hint">Schemes built from one colour. Click any swatch to copy it.</p>
+          </div>
+          <p class="harmony-base" id="harmony-base" hidden>Base colour: <strong id="harmony-base-hex"></strong> — click a palette swatch to change it.</p>
+          <div id="harmony-rows"></div>
+          <div class="field">
+            <label for="hex-input">Or type any HEX colour</label>
+            <div class="btn-row">
+              <input type="text" id="hex-input" placeholder="#E5484D" maxlength="7" aria-label="HEX colour">
+              <button class="btn" type="button" id="btn-hex-harmony">Show harmonies</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-label="Export palette">
+          <div class="panel-head">
+            <h2>Export</h2>
+            <p class="hint">Take the palette with you — into code, a design file, or a shareable card.</p>
+          </div>
+          <div class="field">
+            <label for="card-size-select">Palette card size</label>
+            <select id="card-size-select">
+              <option value="900">900 px wide — quick share</option>
+              <option value="1200" selected>1200 px wide — social post</option>
+              <option value="1600">1600 px wide — print / slides</option>
+            </select>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" type="button" id="btn-download-card">Download palette card (PNG)</button>
+            <button class="btn" type="button" id="btn-copy-css">Copy as CSS variables</button>
+            <button class="btn" type="button" id="btn-copy-tailwind">Copy Tailwind config</button>
+            <button class="btn" type="button" id="btn-download-json">Download JSON</button>
+            <button class="btn" type="button" id="btn-copy-hexlist">Copy all HEX codes</button>
+          </div>
+        </section>
+
+        <section class="panel" aria-label="Recent palettes">
+          <div class="panel-head">
+            <h2>Recent palettes</h2>
+            <p class="hint">Saved on this device only — the last 10 palettes you made.</p>
+          </div>
+          <p class="empty-note" id="recents-empty">Nothing saved yet. Extract a palette and it will show up here.</p>
+          <div class="recents-list" id="recents-list"></div>
+          <button class="btn btn-sm" type="button" id="btn-clear-recents" hidden>Clear recents</button>
+        </section>
+      </div>
+    </div>
+
+    <section class="panel how" aria-label="How it works">
+      <h2>How it works</h2>
+      <ol>
+        <li><strong>Your image is shrunk</strong> to at most 240 px wide in the browser, so extraction stays instant even on a 20-megapixel photo.</li>
+        <li><strong>Median-cut quantisation</strong> splits the pixels into groups by their widest colour channel, again and again, until it has the number of colours you asked for. Each swatch is the average colour of its group, weighted by how many pixels fell in it.</li>
+        <li><strong>Harmonies are pure hue maths</strong> — complementary is the base hue +180°, analogous ±30°, triadic +120°/+240°, split-complementary +150°/+210°.</li>
+        <li><strong>Nothing leaves your device.</strong> No upload, no server, no account. Close the tab and the images are gone; only the palette list in localStorage stays, and you can clear it above.</li>
+      </ol>
+    </section>
+
+    <section class="panel limits" aria-label="Honest limits">
+      <h2>Honest limits</h2>
+      <ul>
+        <li><strong>Extraction is approximate.</strong> Colours are quantised from a downscaled copy of your image, so a swatch is the average of a colour family, not necessarily one exact pixel from the original.</li>
+        <li><strong>Very small images give few colours.</strong> A 32×32 icon may only hold two or three distinct colours — asking for ten will not invent more.</li>
+        <li><strong>Gradients give many similar shades.</strong> A smooth sky gradient quantises into a row of near-identical blues. Sort by hue or raise the saturation floor if that bothers you.</li>
+        <li><strong>Near-white and near-black are ignored by default.</strong> That keeps a white border or a black background from swallowing the palette — uncheck the box if you genuinely want them.</li>
+        <li><strong>Harmonies are computed, not designed.</strong> The maths is exact, but taste is yours: a complementary pair can still clash in a real design.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Built by krrish &middot; <a href="https://github.com/codewithkrrish/palettepick">GitHub</a> &middot; <a href="https://www.instagram.com/krrishx.ai">Instagram @krrishx.ai</a></p>
+      <p class="privacy">Your images are processed locally in your browser and never uploaded.</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
