@@ -160,6 +160,10 @@ function imageDataFromImage(img, name) {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D is not available in this browser.");
+  // No smoothing: when the image is downscaled for extraction, a
+  // smoothed draw blends neighbouring colours into each other, which
+  // is what turns flat #FF0000 into #FE0001.
+  ctx.imageSmoothingEnabled = false;
   ctx.drawImage(img, 0, 0, width, height);
   const imageData = ctx.getImageData(0, 0, width, height);
   return { name: name || "Untitled image", dataUrl: "", imageData, width, height };
@@ -373,15 +377,42 @@ export function setHarmonyBase(hex) {
 }
 
 /** Pick the colour at pixel (x, y) of the current image (used by the
- *  click-on-preview handler). Returns the colour or null. */
+ *  click-on-preview handler). Returns the colour or null. Reads a 3x3
+ *  neighbourhood and returns its most frequent colour (centre pixel on
+ *  a tie): a single clicked pixel can sit on a ±1 decode artefact, but
+ *  the colour the eye actually sees in a flat area is the neighbourhood
+ *  mode — and the panel promises "that exact colour". */
 export function pickColorAt(x, y) {
   const image = currentImage();
   if (!image) return null;
-  const px = Math.min(image.width - 1, Math.max(0, Math.floor(x)));
-  const py = Math.min(image.height - 1, Math.max(0, Math.floor(y)));
-  const i = (py * image.width + px) * 4;
+  const cx = Math.min(image.width - 1, Math.max(0, Math.floor(x)));
+  const cy = Math.min(image.height - 1, Math.max(0, Math.floor(y)));
   const d = image.imageData.data;
-  const colour = toColor(d[i], d[i + 1], d[i + 2]);
+  const freq = new Map();
+  let centre = null;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const px = Math.min(image.width - 1, Math.max(0, cx + dx));
+      const py = Math.min(image.height - 1, Math.max(0, cy + dy));
+      const i = (py * image.width + px) * 4;
+      const key = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+      freq.set(key, (freq.get(key) || 0) + 1);
+      if (dx === 0 && dy === 0) centre = key;
+    }
+  }
+  let bestKey = centre;
+  let bestCount = -1;
+  for (const [key, n] of freq) {
+    if (n > bestCount || (n === bestCount && key === centre)) {
+      bestKey = key;
+      bestCount = n;
+    }
+  }
+  const colour = toColor(
+    (bestKey >> 16) & 0xff,
+    (bestKey >> 8) & 0xff,
+    bestKey & 0xff,
+  );
   state.harmonyBase = colour;
   renderPalette();
   renderHarmonies();
@@ -721,7 +752,7 @@ export function drawPaletteCard(canvas, palette, width = 1200) {
   const pad = 64;
   const gap = 16;
   const swatchH = 300;
-  const titleH = 110;
+  const titleH = 140; // title line + subtitle line + breathing room before the swatches
   const footerH = 64;
   const height = pad + titleH + swatchH + 52 + footerH + pad;
   canvas.width = width;

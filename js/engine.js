@@ -291,6 +291,15 @@ export function extractPalette(pixels, width, height, options = {}) {
   const merged = new Map();
   for (const box of boxes) {
     if (box.length === 0) continue;
+    // The representative colour is the MODE of the box — the exact RGB
+    // value that occurs most often — not the mean. Two reasons: a flat
+    // area of one colour must come back as exactly that colour (a mean
+    // drifts by a point or two when a browser's decode/draw pipeline
+    // leaves a few ±1 neighbour pixels around, e.g. #FE0001 for a pure
+    // red image), and a swatch that names a colour actually present in
+    // the photo is more honest than an averaged colour that appears
+    // nowhere in it. On a tie (a smooth gradient where every value
+    // occurs once) fall back to the pixel nearest the box mean.
     let r = 0;
     let g = 0;
     let b = 0;
@@ -299,13 +308,31 @@ export function extractPalette(pixels, width, height, options = {}) {
       g += px[1];
       b += px[2];
     }
-    // The box average is the representative colour; averaging (rather than
-    // picking a single pixel) keeps one stray bright pixel from hijacking
-    // a whole swatch.
+    const mean = [r / box.length, g / box.length, b / box.length];
+    const freq = new Map();
+    for (const px of box) {
+      const key = (px[0] << 16) | (px[1] << 8) | px[2];
+      freq.set(key, (freq.get(key) || 0) + 1);
+    }
+    let bestKey = -1;
+    let bestCount = -1;
+    let bestDist = Infinity;
+    for (const [key, n] of freq) {
+      const pr = (key >> 16) & 0xff;
+      const pg = (key >> 8) & 0xff;
+      const pb = key & 0xff;
+      const dist =
+        (pr - mean[0]) ** 2 + (pg - mean[1]) ** 2 + (pb - mean[2]) ** 2;
+      if (n > bestCount || (n === bestCount && dist < bestDist)) {
+        bestKey = key;
+        bestCount = n;
+        bestDist = dist;
+      }
+    }
     const colour = toColor(
-      Math.round(r / box.length),
-      Math.round(g / box.length),
-      Math.round(b / box.length),
+      (bestKey >> 16) & 0xff,
+      (bestKey >> 8) & 0xff,
+      bestKey & 0xff,
     );
     const existing = merged.get(colour.hex);
     if (existing) {
