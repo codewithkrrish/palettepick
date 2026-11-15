@@ -12,6 +12,7 @@ import {
   MAX_COLOR_COUNT,
   hexToRgb,
   toColor,
+  snapNearPure,
   colorFromHex,
   formatRgb,
   formatHsl,
@@ -408,11 +409,14 @@ export function pickColorAt(x, y) {
       bestCount = n;
     }
   }
-  const colour = toColor(
+  // Same near-pure snap as extraction: the canvas pipeline dithers pure
+  // colours by ±1, so a click on flat red must report #FF0000.
+  const [pr, pg, pb] = snapNearPure(
     (bestKey >> 16) & 0xff,
     (bestKey >> 8) & 0xff,
     bestKey & 0xff,
   );
+  const colour = toColor(pr, pg, pb);
   state.harmonyBase = colour;
   renderPalette();
   renderHarmonies();

@@ -27,7 +27,7 @@ The extraction pipeline: your image is drawn to a canvas at most 240 px wide, it
 
 ## Honest limits
 
-- Extraction is approximate. Colours are quantised from a downscaled copy, so a swatch is the average of a colour family, not necessarily one exact pixel from the original.
+- Extraction is approximate. Colours are quantised from a downscaled copy, so a swatch is the most common colour of a colour family, not necessarily one exact pixel from the original. Near-pure colours are snapped to the pure value (flat red reads #FF0000, not #FE0001 — browsers dither pure colours by ±1 through their canvas pipeline); in-between shades are left alone.
 - Very small images give few colours. A 32×32 icon may only hold two or three distinct colours — asking for ten will not invent more.
 - Gradients give many similar shades. A smooth sky gradient quantises into a row of near-identical blues.
 - Near-white and near-black are ignored by default, so a white border or black background doesn't swallow the palette. Uncheck the box if you genuinely want them.

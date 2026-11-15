@@ -329,11 +329,12 @@ export function extractPalette(pixels, width, height, options = {}) {
         bestDist = dist;
       }
     }
-    const colour = toColor(
+    const [sr, sg, sb] = snapNearPure(
       (bestKey >> 16) & 0xff,
       (bestKey >> 8) & 0xff,
       bestKey & 0xff,
     );
+    const colour = toColor(sr, sg, sb);
     const existing = merged.get(colour.hex);
     if (existing) {
       existing.count += box.length;
@@ -354,6 +355,23 @@ export function extractPalette(pixels, width, height, options = {}) {
 }
 
 /** Convenience wrapper for an ImageData-like object {data, width, height}. */
+/**
+ * Snap a colour to the pure value when it is already essentially pure:
+ * every channel within 2 steps of 0 or 255. Browsers dither pure colours
+ * by ±1 when an image passes through their canvas pipeline (a flat red
+ * PNG can read back as (254,0,1) or (255,1,1) depending on the pixel's
+ * position), so without this a flat red logo extracts as #FE0001 instead
+ * of #FF0000. The all-three-channels rule keeps the snap conservative:
+ * a real photo colour like (250,30,40) is untouched because its green
+ * channel is nowhere near an extreme.
+ */
+export function snapNearPure(r, g, b) {
+  const snap = (v) => (v <= 2 ? 0 : v >= 253 ? 255 : v);
+  const near = (v) => v <= 2 || v >= 253;
+  if (near(r) && near(g) && near(b)) return [snap(r), snap(g), snap(b)];
+  return [r, g, b];
+}
+
 export function extractPaletteFromImageData(imageData, options = {}) {
   if (!imageData || !imageData.data) return [];
   return extractPalette(

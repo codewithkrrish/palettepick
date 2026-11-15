@@ -185,7 +185,7 @@
     <section class="panel limits" aria-label="Honest limits">
       <h2>Honest limits</h2>
       <ul>
-        <li><strong>Extraction is approximate.</strong> Colours are quantised from a downscaled copy of your image, so a swatch is the average of a colour family, not necessarily one exact pixel from the original.</li>
+        <li><strong>Extraction is approximate.</strong> Colours are quantised from a downscaled copy of your image, so a swatch is the most common colour of a colour family, not necessarily one exact pixel from the original. Near-pure colours are snapped to the pure value (so flat red reads #FF0000, not #FE0001), but a photo's in-between shades stay as they are.</li>
         <li><strong>Very small images give few colours.</strong> A 32×32 icon may only hold two or three distinct colours — asking for ten will not invent more.</li>
         <li><strong>Gradients give many similar shades.</strong> A smooth sky gradient quantises into a row of near-identical blues. Sort by hue or raise the saturation floor if that bothers you.</li>
         <li><strong>Near-white and near-black are ignored by default.</strong> That keeps a white border or a black background from swallowing the palette — uncheck the box if you genuinely want them.</li>
